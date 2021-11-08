@@ -1,3 +1,3 @@
 # group7-visualisation
 
-![Test Image 3](/3DTest.png)
+![Plan](/WhatsApp Image 2021-11-08 at 3.43.16 PM.jpeg)
