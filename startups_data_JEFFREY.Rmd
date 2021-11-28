@@ -1,0 +1,224 @@
+---
+title: "startups"
+author: "Hanyu Wang"
+date: "26/11/2021"
+output: html_document
+---
+```{r}
+library(dplyr)
+library(janitor)
+library(tidyverse)
+library(skimr)
+library(vroom)
+
+library(tidyverse) # the usual stuff: dplyr, readr, and other goodies
+library(lubridate) # to handle dates
+library(GGally) # for correlation-scatter plot matrix
+library(ggfortify) # to produce residual diagnostic plots
+library(rsample) # to split dataframe in training- & testing sets
+library(janitor) # clean_names()
+library(broom) # use broom:augment() to get tidy table with regression output, residuals, etc
+library(huxtable) # to get summary table of all models produced
+library(caret) # to train more advanced models (k-fold cross-validation, stepwise regression, LASSO)
+library(nnet) # to calculate the maximum value of a vector
+library(pROC) # to plot ROC curves
+library(MLmetrics) #for caret LASSO logistic regression
+```
+
+
+```{r}
+data_startups_original <- "STARTUPS"
+files <- fs::dir_ls(path = data_startups_original, regexp = "\\.csv$", recurse = TRUE) 
+startups_data <- vroom(files, id = "source")
+write.csv(x = startups_data,file = "startups_data.csv")
+
+data_investors_original <- "INVESTORS"
+files <- fs::dir_ls(path = data_investors_original, regexp = "\\.csv$", recurse = TRUE) 
+investors_data <- vroom(files, id = "source")
+write.csv(x = investors_data,file = "investors_data.csv")
+```
+
+```{r}
+startups_data <- startups_data %>% clean_names()
+skim(startups_data)
+```
+
+
+```{r}
+startups_data %>%
+  select(transaction_name, organization_name, number_of_investors, money_raised_currency_in_usd, total_funding_amount_currency_in_usd)%>%
+  glimpse()
+```
+
+```{r}
+relevant_for_funding_stages <- startups_data %>% select(transaction_name,funding_type, funding_status, funding_stage, money_raised_currency_in_usd, number_of_funding_rounds, pre_money_valuation_currency_in_usd, total_funding_amount_currency_in_usd, number_of_investors)
+glimpse(relevant_for_funding_stages)
+```
+```{r}
+relevant_for_funding_stages %>%
+  select(funding_type)%>%
+  group_by(funding_type)%>%
+  summarise(count = n())
+
+relevant_for_funding_stages %>%
+  select(funding_status)%>%
+  group_by(funding_status)%>%
+  summarise(count = n())
+
+relevant_for_funding_stages %>%
+  select(funding_stage)%>%
+  group_by(funding_stage)%>%
+  summarise(count = n())
+```
+
+
+
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_type))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_type)%>%
+  summarise(funding = sum(money_raised_currency_in_usd))%>%
+  ggplot(aes(y = funding_type, x = funding))+
+  geom_col()+
+  theme_classic()+
+  NULL
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_type))%>%
+  group_by(funding_type)%>%
+  summarise(count = n())%>%
+  ggplot(aes(y = funding_type, x = count))+
+  geom_col()+
+  theme_classic()+
+  NULL
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_type))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_type)%>%
+  summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
+  mutate(average_funding = funding/number)%>%
+  ggplot(aes(y = fct_reorder(funding_type,average_funding), x = average_funding, fill = fct_reorder(funding_type,average_funding)))+
+  geom_col()+
+  theme_classic()+
+  scale_fill_discrete(h = c(100, 235) + 15, c = 100, l = 65, h.start = 0, direction = 1)+
+  labs(title = "Average funding per funding type", subtitle = "", x = "Funding in USD", y = "Funding type")+
+  theme(legend.position = "none")+
+  NULL
+  
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_stage))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_stage)%>%
+  summarise(funding = sum(money_raised_currency_in_usd))%>%
+  ggplot(aes(x = funding_stage, y = funding))+
+  geom_col()
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_stage))%>%
+  group_by(funding_stage)%>%
+  summarise(count = n())%>%
+  ggplot(aes(x = funding_stage, y = count))+
+  geom_col()
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_stage))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_stage)%>%
+  summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
+  mutate(average_funding = funding/number)%>%
+  ggplot(aes(x = fct_reorder(funding_stage,average_funding), y = average_funding))+
+  geom_col()
+```
+
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(number_of_funding_rounds))%>%
+  group_by(number_of_funding_rounds)%>%
+  summarise(number = n())%>%
+  ggplot(aes(x =number_of_funding_rounds, y = number))+
+  geom_col()
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(total_funding_amount_currency_in_usd))%>%
+  ggplot(aes(total_funding_amount_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,1)
+
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(total_funding_amount_currency_in_usd))%>%
+  ggplot(aes(total_funding_amount_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,10)
+
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(total_funding_amount_currency_in_usd))%>%
+  ggplot(aes(total_funding_amount_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,100)
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  ggplot(aes(x = number_of_investors, y = total_funding_amount_currency_in_usd))+
+  geom_point()
+```
+
+
+```{r}
+relevant_for_funding_stages %>%
+  select(money_raised_currency_in_usd, total_funding_amount_currency_in_usd, number_of_funding_rounds, transaction_name)%>%
+  mutate(total_minus_money = total_funding_amount_currency_in_usd-money_raised_currency_in_usd)%>%
+  filter(total_minus_money > 10)%>%
+  arrange(transaction_name)
+```
+
+
+
+
+
+```{r}
+relevant_for_funding_stages %>%
+  select(transaction_name,money_raised_currency_in_usd, total_funding_amount_currency_in_usd, number_of_funding_rounds)%>%
+  group_by(transaction_name)%>%
+  summarise(count = n())%>%
+  arrange(desc(count))
+
+relevant_for_funding_stages %>%
+  filter(transaction_name == "Funding Round - JewelStreet")
+```
+
+
+```{r}
+startups_data %>%
+  filter(funding_status == "M&A")%>%
+  arrange(desc(total_funding_amount_currency_in_usd))
+```
+
+```{r}
+startups_data %>%
+  group_by(lead_investors)%>%
+  summarise(sum = sum(total_funding_amount_currency_in_usd), number_of_investments = n())%>%
+  arrange(desc(sum))
+```
+
+
+
+
