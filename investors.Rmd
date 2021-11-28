@@ -1,0 +1,162 @@
+---
+title: "Untitled"
+author: "Vale"
+date: "11/27/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, load_libraries, include = FALSE}
+library(tidyverse) # the usual stuff: dplyr, readr, and other goodies
+library(lubridate)
+library(janitor) # clean_names()
+library(skimr) #this is so big so we can read it with this
+library(vroom)
+```
+
+
+
+```{r, loading the data}
+
+investor_data <- read_csv(here::here("/Users/Valeriaopre/Desktop/Data Visualisation/am10_coursework/investors_data.csv")) %>% 
+  janitor::clean_names()
+
+
+```
+```{r}
+
+glimpse(investor_data)
+
+
+```
+
+
+```{r}
+
+investor_data %>%  
+  select(organization_person_name, investor_type, number_of_investments, number_of_exits, location, investment_stage, description,number_of_lead_investments, number_of_partner_investments, number_of_portfolio_organizations,number_of_lead_investments) %>% 
+  skimr::skim()
+
+
+
+```
+
+```{r, removing duplicates and rows that provide no information}
+investor_data <- investor_data %>% 
+  #select(-number_of_partner_investments) %>% 
+skimr::skim()
+
+```
+
+
+```{r}
+investor_data %>%  
+  select(organization_person_name, investor_type, number_of_investments, number_of_exits, location, investment_stage, description,number_of_lead_investments, number_of_portfolio_organizations,number_of_lead_investments) %>% 
+  skimr::skim()
+
+
+
+```
+
+
+```{r}
+
+library(kableExtra)
+type_investor <- investor_data %>% 
+  count(investor_type, sort=TRUE) %>% 
+mutate(percent = 100* n/sum(n))%>% 
+  arrange(desc(percent)) %>%
+  filter(percent>1)
+
+
+type_investor
+
+
+#fct_count(investor_data$investor_type)
+
+
+#type_investor <- fct_collapse(investor_data$investor_type,
+ # Accelerator = c("Accelerator, Incubator", "Accelerator", "Accelerator, Venture Capital","Accelerator, Micro VC, Venture Capital","Accelerator, Micro VC","Accelerator, Incubator, Venture Capital","Accelerator, Corporate Venture Capital, Incubator","Accelerator, Entrepreneurship Program, Venture Capital","Accelerator, Private Equity Firm, Venture Capital"), group_other = "other"
+  #ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+ # dem = c("Not str democrat", "Strong democrat")
+#)
+
+
+
+```
+
+```{r}
+#location as city
+
+locations <- investor_data %>% 
+  count(location, sort=TRUE) %>% 
+  drop_na() 
+
+kbl(locations,col.names=c("Location of Investors","Count")) %>%
+  kable_styling()
+
+#location as country (third entry of the list?)
+
+investor_data$location[3]
+
+
+
+state<-str_split(investor_data$location, ",")
+
+investor_data<- investor_data %>% 
+  mutate(state=state)
+
+state[[]][3]
+
+states<- sapply(state, tail, 1)
+
+investor_data <- investor_data %>% 
+  mutate(states=states)
+
+states_table<- investor_data %>% 
+  count(states, sort=TRUE) %>% 
+  drop_na() 
+kbl(states_table,col.names=c("Investors by State","Count")) %>%
+  kable_styling()
+
+
+#lets make a map of where investors are from and also the biggest investment are coming+seed stage
+
+```
+
+```{r}
+
+
+
+boxplot for type_investor and size of number_of_investments
+
+investor_data %>% 
+  ggplot(aes(x=number_of_investments))+
+  geom_bar()+
+  xlim(0,1000)
+
+
+investor_data %>% 
+  ggplot(aes(x=number_of_investments))+
+  geom_bar()+
+  xlim(0,500)
+
+
+investor_data %>% 
+  ggplot(aes(fill=type_investor, x=number_of_investments))+
+  geom_histogram()+
+  #scale_fill_manual(values=c("#69b3a2", "#404080")) +
+
+    labs(fill="")
+  #xlim(0,500)
+
+
+
+
+
+```
+
