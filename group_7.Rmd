@@ -888,7 +888,7 @@ data_industry %>%
   group_by(funding_stage)%>%
   summarise(funding = sum(money_raised_currency_in_usd))%>%
   ggplot(aes(x = factor(funding_stage, levels=order), y = funding/(10^9)))+
-  geom_col(fill = "#068D99")+
+  geom_col(fill = "#055960")+
 #  geom_text(aes(label=paste(funding)), vjust = -0.5)+
   theme_classic()+
   labs(title = paste("Total amount raised in the past 5 years per funding stage in ", industry_name), subtitle = "", x = "Funding Stage", y = "Amount in billions")
@@ -901,7 +901,7 @@ data_industry %>%
   group_by(funding_stage)%>%
   summarise(count = n())%>%
   ggplot(aes(x = factor(funding_stage, levels=order), y = count))+
-  geom_col(fill = "#068D99")+
+  geom_col(fill = "#055960")+
 #  geom_text(aes(label=paste(count)), vjust = -0.5)+
   theme_classic()+
   labs(title = paste("Total number of investments in the past 5 years per funding stage in ", industry_name), subtitle = "", x = "Funding Stage", y = "Number")
@@ -917,7 +917,7 @@ data_industry %>%
   summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
   mutate(average_funding = funding/number)%>%
   ggplot(aes(x = factor(funding_stage, levels=order), y = average_funding/(10^9)))+
-  geom_col(fill = "#068D99")+
+  geom_col(fill = "#055960")+
 #  geom_text(aes(label=paste(average_funding)), vjust = -0.5)+
   theme_classic()+
   labs(title = paste("Average amount raised in the past 5 years per funding stage in ",industry_name), subtitle = "", x = "Funding Stage", y = "Average amount in billions")
