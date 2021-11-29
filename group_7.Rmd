@@ -887,9 +887,11 @@ data_industry %>%
   filter(!is.na(money_raised_currency_in_usd))%>%
   group_by(funding_stage)%>%
   summarise(funding = sum(money_raised_currency_in_usd))%>%
-  ggplot(aes(x = factor(funding_stage, levels=order), y = funding,order))+
-  geom_col()+
-  theme_classic()
+  ggplot(aes(x = factor(funding_stage, levels=order), y = funding/(10^9)))+
+  geom_col(fill = "#068D99")+
+#  geom_text(aes(label=paste(funding)), vjust = -0.5)+
+  theme_classic()+
+  labs(title = paste("Total amount raised in the past 5 years per funding stage in ", industry_name), subtitle = "", x = "Funding Stage", y = "Amount in billions")
 }
 
 funding_stages_count <- function(industry_name) {
@@ -899,8 +901,11 @@ data_industry %>%
   group_by(funding_stage)%>%
   summarise(count = n())%>%
   ggplot(aes(x = factor(funding_stage, levels=order), y = count))+
-  geom_col()+
-  theme_classic()
+  geom_col(fill = "#068D99")+
+#  geom_text(aes(label=paste(count)), vjust = -0.5)+
+  theme_classic()+
+  labs(title = paste("Total number of investments in the past 5 years per funding stage in ", industry_name), subtitle = "", x = "Funding Stage", y = "Number")
+
 }
 
 funding_stages_average <- function(industry_name) {
@@ -911,9 +916,12 @@ data_industry %>%
   group_by(funding_stage)%>%
   summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
   mutate(average_funding = funding/number)%>%
-  ggplot(aes(x = factor(funding_stage, levels=order), y = average_funding))+
-  geom_col()+
-  theme_classic()
+  ggplot(aes(x = factor(funding_stage, levels=order), y = average_funding/(10^9)))+
+  geom_col(fill = "#068D99")+
+#  geom_text(aes(label=paste(average_funding)), vjust = -0.5)+
+  theme_classic()+
+  labs(title = paste("Average amount raised in the past 5 years per funding stage in ",industry_name), subtitle = "", x = "Funding Stage", y = "Average amount in billions")
+
 
 }
 
@@ -933,4 +941,24 @@ funding_stages_amount(industry_name = industry)
 funding_stages_count(industry_name = industry)
 funding_stages_average(industry_name = industry)
 ```
+```{r}
+industry = "Financial"
+funding_stages_amount(industry_name = industry)
+funding_stages_count(industry_name = industry)
+funding_stages_average(industry_name = industry)
+```
 
+```{r}
+industry = "E-Commerce"
+funding_stages_amount(industry_name = industry)
+funding_stages_count(industry_name = industry)
+funding_stages_average(industry_name = industry)
+```
+
+
+```{r}
+industry = "Automotive"
+funding_stages_amount(industry_name = industry)
+funding_stages_count(industry_name = industry)
+funding_stages_average(industry_name = industry)
+```
