@@ -1,0 +1,94 @@
+---
+title: "Group  07 Visualisation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+library(janitor)
+library(tidyverse)
+library(skimr)
+library(vroom)
+library(tidyverse) # the usual stuff: dplyr, readr, and other goodies
+library(janitor) # clean_names()
+library(wordcloud)
+library(tm)
+library(ggplot2)
+```
+
+
+```{r}
+data_startups_original <- "STARTUPS"
+files <- fs::dir_ls(path = data_startups_original, regexp = "\\.csv$", recurse = TRUE) 
+startups_data <- vroom(files, id = "source")
+write.csv(x = startups_data,file = "startups_data.csv")
+
+```
+
+```{r}
+startups_data <- startups_data %>% clean_names()
+skim(startups_data)
+
+startups_data_year_2017<-startups_data %>% 
+   filter(announced_date >= as.Date("2016-01-01") & announced_date <= as.Date("2018-01-01"))
+
+startups_data_year_2018<-startups_data %>% 
+   filter(announced_date >= as.Date("2018-01-01") & announced_date <= as.Date("2019-01-01"))
+
+startups_data_year_2019<-startups_data %>% 
+   filter(announced_date >= as.Date("2019-01-01") & announced_date <= as.Date("2020-01-01"))
+
+startups_data_year_2020<-startups_data %>% 
+   filter(announced_date >= as.Date("2020-01-01") & announced_date <= as.Date("2021-01-01"))
+
+startups_data_year_2021<-startups_data %>% 
+   filter(announced_date >= as.Date("2021-01-01") & announced_date <= as.Date("2022-01-01"))
+
+```
+
+```{r}
+startups_data_text1<- startups_data_year_2017 %>% 
+  select(organization_industries)
+  paste(unlist(startups_data_text1), collapse =" ")
+  
+write.table(startups_data_text1, file = "startups_data_2017.text", sep = "\t",
+            row.names = FALSE)
+            
+#source('http://www.sthda.com/upload/rquery_wordcloud.r')
+startups_data_text2<- startups_data_year_2021 %>% 
+  select(organization_industries)
+  paste(unlist(startups_data_text2), collapse =" ")
+  
+write.table(startups_data_text2, file = "startups_data_2021.text", sep = "\t",
+            row.names = FALSE)
+            
+#source('http://www.sthda.com/upload/rquery_wordcloud.r')
+
+```
+
+```{r}
+#source('http://www.sthda.com/upload/rquery_wordcloud.r')
+#filePath <- "startups_data.text"
+#res<-rquery.wordcloud(filePath, type ="file", lang = "english",excludeWords="company", min.freq = 1,  max.words = 150)
+
+filePath1 <- "startups_data_2017.text"
+res<-rquery.wordcloud(filePath1, type ="file", lang = "english",excludeWords=c("company","CSV"), min.freq = 1,  max.words =150)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+filePath2 <- "startups_data_2021.text"
+res<-rquery.wordcloud(filePath2, type ="file", lang = "english",excludeWords=c("company","CSV"), min.freq = 1,  max.words =150)
+
+```
+
+
+
+
