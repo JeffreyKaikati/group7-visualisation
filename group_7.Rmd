@@ -1,0 +1,442 @@
+---
+title: "startups"
+author: "Group 7"
+date: "26/11/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+library(skimr)
+library(vroom)
+library(tidyverse) # the usual stuff: dplyr, readr, and other goodies
+library(lubridate) # to handle dates
+library(GGally) # for correlation-scatter plot matrix
+library(ggfortify) # to produce residual diagnostic plots
+library(rsample) # to split dataframe in training- & testing sets
+library(janitor) # clean_names()
+library(broom) # use broom:augment() to get tidy table with regression output, residuals, etc
+library(huxtable) # to get summary table of all models produced
+library(caret) # to train more advanced models (k-fold cross-validation, stepwise regression, LASSO)
+library(nnet) # to calculate the maximum value of a vector
+library(pROC) # to plot ROC curves
+library(MLmetrics) #for caret LASSO logistic regression
+library(stringr)
+library(RTextTools)
+library(SnowballC)
+library(wordcloud)
+library(tm)
+library(ggplot2)
+```
+
+# Stage of funding
+```{r}
+data_startups_original <- "STARTUPS"
+files <- fs::dir_ls(path = data_startups_original, regexp = "\\.csv$", recurse = TRUE) 
+startups_data <- vroom(files, id = "source")
+write.csv(x = startups_data,file = "startups_data.csv")
+
+data_investors_original <- "INVESTORS"
+files <- fs::dir_ls(path = data_investors_original, regexp = "\\.csv$", recurse = TRUE) 
+investors_data <- vroom(files, id = "source")
+write.csv(x = investors_data,file = "investors_data.csv")
+```
+
+```{r}
+startups_data <- startups_data %>% clean_names()
+skim(startups_data)
+```
+
+
+```{r}
+startups_data %>%
+  select(transaction_name, organization_name, number_of_investors, money_raised_currency_in_usd, total_funding_amount_currency_in_usd)%>%
+  glimpse()
+```
+
+```{r}
+relevant_for_funding_stages <- startups_data %>% select(money_raised_currency_in_usd,transaction_name,funding_type, funding_status, funding_stage, money_raised_currency_in_usd, number_of_funding_rounds, pre_money_valuation_currency_in_usd, total_funding_amount_currency_in_usd, number_of_investors)
+glimpse(relevant_for_funding_stages)
+```
+```{r}
+relevant_for_funding_stages %>%
+  select(funding_type)%>%
+  group_by(funding_type)%>%
+  summarise(count = n())
+
+relevant_for_funding_stages %>%
+  select(funding_status)%>%
+  group_by(funding_status)%>%
+  summarise(count = n())
+
+relevant_for_funding_stages %>%
+  select(funding_stage)%>%
+  group_by(funding_stage)%>%
+  summarise(count = n())
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_type))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_type)%>%
+  summarise(funding = sum(money_raised_currency_in_usd))%>%
+  ggplot(aes(y = funding_type, x = funding))+
+  geom_col()+
+  theme_classic()+
+  NULL
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_type))%>%
+  group_by(funding_type)%>%
+  summarise(count = n())%>%
+  ggplot(aes(y = funding_type, x = count))+
+  geom_col()+
+  theme_classic()+
+  NULL
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_type))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_type)%>%
+  summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
+  mutate(average_funding = funding/number)%>%
+  ggplot(aes(y = fct_reorder(funding_type,average_funding), x = average_funding, fill = fct_reorder(funding_type,average_funding)))+
+  geom_col()+
+  theme_classic()+
+  scale_fill_discrete(h = c(100, 235) + 15, c = 100, l = 65, h.start = 0, direction = 1)+
+  labs(title = "Average funding per funding type", subtitle = "", x = "Funding in USD", y = "Funding type")+
+  theme(legend.position = "none")+
+  NULL
+  
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_stage))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_stage)%>%
+  summarise(funding = sum(money_raised_currency_in_usd))%>%
+  ggplot(aes(x = funding_stage, y = funding))+
+  geom_col()
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_stage))%>%
+  group_by(funding_stage)%>%
+  summarise(count = n())%>%
+  ggplot(aes(x = funding_stage, y = count))+
+  geom_col()
+
+relevant_for_funding_stages %>%
+  filter(!is.na(funding_stage))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_stage)%>%
+  summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
+  mutate(average_funding = funding/number)%>%
+  ggplot(aes(x = fct_reorder(funding_stage,average_funding), y = average_funding))+
+  geom_col()
+```
+
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(number_of_funding_rounds))%>%
+  group_by(number_of_funding_rounds)%>%
+  summarise(number = n())%>%
+  ggplot(aes(x =number_of_funding_rounds, y = number))+
+  geom_col()
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(total_funding_amount_currency_in_usd))%>%
+  ggplot(aes(total_funding_amount_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,1)
+
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(total_funding_amount_currency_in_usd))%>%
+  ggplot(aes(total_funding_amount_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,10)
+
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(total_funding_amount_currency_in_usd))%>%
+  ggplot(aes(total_funding_amount_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,100)
+
+relevant_for_funding_stages %>%
+  filter(!is.na(pre_money_valuation_currency_in_usd))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  ggplot(aes(money_raised_currency_in_usd/pre_money_valuation_currency_in_usd))+
+  geom_boxplot(col = "red",
+horizontal = TRUE,
+notch = TRUE)+
+  xlim(0,1)
+```
+
+```{r}
+relevant_for_funding_stages %>%
+  ggplot(aes(x = number_of_investors, y = total_funding_amount_currency_in_usd))+
+  geom_point()
+```
+
+
+```{r}
+relevant_for_funding_stages %>%
+  select(money_raised_currency_in_usd, total_funding_amount_currency_in_usd, number_of_funding_rounds, transaction_name)%>%
+  mutate(total_minus_money = total_funding_amount_currency_in_usd-money_raised_currency_in_usd)%>%
+  filter(total_minus_money > 10)%>%
+  arrange(transaction_name)
+```
+
+
+
+
+
+```{r}
+relevant_for_funding_stages %>%
+  select(transaction_name,money_raised_currency_in_usd, total_funding_amount_currency_in_usd, number_of_funding_rounds)%>%
+  group_by(transaction_name)%>%
+  summarise(count = n())%>%
+  arrange(desc(count))
+
+relevant_for_funding_stages %>%
+  filter(transaction_name == "Funding Round - JewelStreet")
+```
+
+
+```{r}
+startups_data %>%
+  filter(funding_status == "M&A")%>%
+  arrange(desc(total_funding_amount_currency_in_usd))
+```
+
+```{r}
+startups_data %>%
+  group_by(lead_investors)%>%
+  summarise(sum = sum(total_funding_amount_currency_in_usd), number_of_investments = n())%>%
+  arrange(desc(sum))
+```
+
+
+
+
+
+
+
+# Industry Analysis
+
+
+```{r}
+data = read.csv("startups_data.csv")
+
+data = data %>% janitor::clean_names()
+```
+
+```{r}
+skim(data)
+
+data_clean = data %>% 
+  select(-c("transaction_name_url", 
+            "organization_name_url", 
+            "money_raised_currency", 
+            "total_funding_amount_currency", 
+            "pre_money_valuation_currency", 
+            "money_raised", 
+            "total_funding_amount", 
+            "pre_money_valuation"))
+
+data_clean %>% count(organization_industries)
+
+```
+
+```{r}
+data_clean = data_clean %>%
+  mutate(industries = gsub("\\,.*,","", organization_industries))
+
+data_clean = data_clean %>%
+  mutate(industries = word(industries, 1, sep = " "), 
+         industries = gsub(",","", industries), 
+         root = wordStem(industries))
+        
+data_clean %>% 
+  group_by(root) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+
+industry_list = data_clean %>%
+  group_by(root) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  filter(Percent > 1)
+
+industry_list = industry_list$root
+
+data_industry = data_clean %>%
+  filter(root %in% industry_list) %>%
+  drop_na(root)
+
+data_industry = data_industry %>%
+  mutate(three = substr(root, 1, 3))
+
+data_industry %>% 
+  group_by(three) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+data_industry %>% 
+  group_by(industries) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+```
+
+```{r}
+data_industry %>%
+  group_by(three) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  ggplot(aes(x = Percent, y = three, fill = three)) + 
+  geom_col() +
+  theme(legend.position = "none") +
+  labs(title = "Distribution of Funding per Industry") +
+  xlab("Percentage") +
+  ylab("") 
+
+data_industry = data_industry %>%
+  mutate(year = substr(announced_date, 1, 4))
+
+data_industry = data_industry %>%
+  mutate(year_three = paste(year, three))
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = sum, color = three)) +
+  geom_line(aes(x = year, y = sum, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(count = n()) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = count, color = three)) +
+  geom_line(aes(x = year, y = count, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(count = n(), 
+            sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
+            avg_deal = sum/count) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = avg_deal, color = three)) +
+  geom_line(aes(x = year, y = avg_deal, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+```
+
+
+# Wordcloud
+
+```{r}
+data_startups_original <- "STARTUPS"
+files <- fs::dir_ls(path = data_startups_original, regexp = "\\.csv$", recurse = TRUE) 
+startups_data <- vroom(files, id = "source")
+write.csv(x = startups_data,file = "startups_data.csv")
+
+```
+
+```{r}
+startups_data <- startups_data %>% clean_names()
+skim(startups_data)
+
+startups_data_year_2017<-startups_data %>% 
+   filter(announced_date >= as.Date("2016-01-01") & announced_date <= as.Date("2018-01-01"))
+
+startups_data_year_2018<-startups_data %>% 
+   filter(announced_date >= as.Date("2018-01-01") & announced_date <= as.Date("2019-01-01"))
+
+startups_data_year_2019<-startups_data %>% 
+   filter(announced_date >= as.Date("2019-01-01") & announced_date <= as.Date("2020-01-01"))
+
+startups_data_year_2020<-startups_data %>% 
+   filter(announced_date >= as.Date("2020-01-01") & announced_date <= as.Date("2021-01-01"))
+
+startups_data_year_2021<-startups_data %>% 
+   filter(announced_date >= as.Date("2021-01-01") & announced_date <= as.Date("2022-01-01"))
+
+```
+
+```{r}
+startups_data_text1<- startups_data_year_2017 %>% 
+  select(organization_industries)
+  paste(unlist(startups_data_text1), collapse =" ")
+  
+write.table(startups_data_text1, file = "startups_data_2017.text", sep = "\t",
+            row.names = FALSE)
+            
+#source('http://www.sthda.com/upload/rquery_wordcloud.r')
+startups_data_text2<- startups_data_year_2021 %>% 
+  select(organization_industries)
+  paste(unlist(startups_data_text2), collapse =" ")
+  
+write.table(startups_data_text2, file = "startups_data_2021.text", sep = "\t",
+            row.names = FALSE)
+            
+#source('http://www.sthda.com/upload/rquery_wordcloud.r')
+
+```
+
+```{r}
+#source('http://www.sthda.com/upload/rquery_wordcloud.r')
+#filePath <- "startups_data.text"
+#res<-rquery.wordcloud(filePath, type ="file", lang = "english",excludeWords="company", min.freq = 1,  max.words = 150)
+
+filePath1 <- "startups_data_2017.text"
+res<-rquery.wordcloud(filePath1, type ="file", lang = "english",excludeWords=c("company","CSV"), min.freq = 1,  max.words =150)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+filePath2 <- "startups_data_2021.text"
+res<-rquery.wordcloud(filePath2, type ="file", lang = "english",excludeWords=c("company","CSV"), min.freq = 1,  max.words =150)
+
+```
+
+
+
+
+
+
+
+
+
+
