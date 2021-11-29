@@ -874,6 +874,63 @@ w
 
 
 
+# BY industry: let's look at stages for funding 
+```{r}
+
+order = c("Seed", "Early Stage Venture","Late Stage Venture", "Private Equity")
+
+funding_stages_amount <- function(industry_name) {
+  
+data_industry %>%
+  filter(industries == industry_name)%>%
+  filter(!is.na(funding_stage))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_stage)%>%
+  summarise(funding = sum(money_raised_currency_in_usd))%>%
+  ggplot(aes(x = factor(funding_stage, levels=order), y = funding,order))+
+  geom_col()+
+  theme_classic()
+}
+
+funding_stages_count <- function(industry_name) {
+data_industry %>%
+  filter(industries == industry_name)%>%
+  filter(!is.na(funding_stage))%>%
+  group_by(funding_stage)%>%
+  summarise(count = n())%>%
+  ggplot(aes(x = factor(funding_stage, levels=order), y = count))+
+  geom_col()+
+  theme_classic()
+}
+
+funding_stages_average <- function(industry_name) {
+data_industry %>%
+  filter(industries == industry_name)%>%
+  filter(!is.na(funding_stage))%>%
+  filter(!is.na(money_raised_currency_in_usd))%>%
+  group_by(funding_stage)%>%
+  summarise(funding = sum(money_raised_currency_in_usd), number = n())%>%
+  mutate(average_funding = funding/number)%>%
+  ggplot(aes(x = factor(funding_stage, levels=order), y = average_funding))+
+  geom_col()+
+  theme_classic()
+
+}
 
 
+```
+
+```{r}
+industry = "Health"
+funding_stages_amount(industry_name = industry)
+funding_stages_count(industry_name = industry)
+funding_stages_average(industry_name = industry)
+
+```
+```{r}
+industry = "Blockchain"
+funding_stages_amount(industry_name = industry)
+funding_stages_count(industry_name = industry)
+funding_stages_average(industry_name = industry)
+```
 
