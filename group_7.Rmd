@@ -33,6 +33,10 @@ library(SnowballC)
 library(wordcloud)
 library(tm)
 library(ggplot2)
+library(tmap)
+library(tmaptools)
+library(sf)
+library(maps)
 ```
 
 # Stage of funding
@@ -424,6 +428,11 @@ res<-rquery.wordcloud(filePath1, type ="file", lang = "english",excludeWords=c("
 
 ```
 
+
+
+
+
+
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 ```{r}
 filePath2 <- "startups_data_2021.text"
@@ -433,6 +442,434 @@ res<-rquery.wordcloud(filePath2, type ="file", lang = "english",excludeWords=c("
 
 
 
+
+# Map Visualisations
+
+```{r}
+#data_startups_original <- "STARTUPS"
+#files <- fs::dir_ls(path = data_startups_original, regexp = "\\.csv$", recurse = TRUE) 
+#startups_data <- vroom(files, id = "source")
+#write.csv(x = startups_data,file = "startups_data.csv")
+
+#data_investors_original <- "INVESTORS"
+#files <- fs::dir_ls(path = data_investors_original, regexp = "\\.csv$", recurse = TRUE) 
+#investors_data <- vroom(files, id = "source")
+#write.csv(x = investors_data,file = "investors_data.csv")
+
+startups_data <- read.csv("startups_data.csv")
+investors_data <- read.csv("investors_data.csv")
+```
+
+```{r}
+names(startups_data)[names(startups_data) == 'Organization.Location'] <- 'location'
+names(startups_data)[names(startups_data) == 'Announced.Date'] <- 'date'
+startups_data
+```
+
+
+```{r}
+startups_data <- startups_data %>%
+  mutate(year = year(date))
+```
+
+```{r warning = FALSE}
+location_counts <- startups_data %>% 
+  group_by(location) %>% 
+  tally() %>%
+  separate(location, c('location', 'shire', 'country','continent')) %>%
+  select(-shire, -country, -continent)
+
+location_counts2017 <- startups_data %>% 
+  filter(year == 2017) %>% 
+  group_by(location) %>% 
+  tally() %>%
+  separate(location, c('location', 'shire', 'country','continent')) %>%
+  select(-shire, -country, -continent)
+
+location_counts2018 <- startups_data %>% 
+  filter(year == 2018) %>% 
+  group_by(location) %>% 
+  tally() %>%
+  separate(location, c('location', 'shire', 'country','continent')) %>%
+  select(-shire, -country, -continent)
+
+location_counts2019 <- startups_data %>% 
+  filter(year == 2019) %>% 
+  group_by(location) %>% 
+  tally() %>%
+  separate(location, c('location', 'shire', 'country','continent')) %>%
+  select(-shire, -country, -continent)
+
+location_counts2020 <- startups_data %>% 
+  filter(year == 2020) %>% 
+  group_by(location) %>% 
+  tally() %>%
+  separate(location, c('location', 'shire', 'country','continent')) %>%
+  select(-shire, -country, -continent)
+
+location_counts2021 <- startups_data %>% 
+  filter(year == 2021) %>% 
+  group_by(location) %>% 
+  tally() %>%
+  separate(location, c('location', 'shire', 'country','continent')) %>%
+  select(-shire, -country, -continent)
+
+location_counts
+location_counts2017
+location_counts2018
+location_counts2019
+location_counts2020
+location_counts2021
+```
+# method 1: github open source location information
+
+```{r}
+geocorrected <- read_csv('https://raw.githubusercontent.com/networkingarchives/networkingarchives.github.io/main/geocorrected.csv')
+colnames(geocorrected)[7:9] = c('wikititle', 
+                                'lat', 
+                                'lng')
+
+geocorrected <- geocorrected %>% 
+  select(-1, -10,-11, -12) %>%
+  select(-General.area.of.coverage, -Country.of.publication, -places)
+
+names(geocorrected)[names(geocorrected) == 'Coverage..City'] <- 'location'
+names(geocorrected)[names(geocorrected) == 'lng'] <- 'long'
+
+geocorrected <- geocorrected %>%
+  mutate(lat = as.numeric(lat)) %>% 
+  mutate(lng = as.numeric(long)) %>% 
+  filter(!is.na(lat)) %>% 
+  filter(!is.na(long))
+
+geocorrected
+```
+```{r}
+final_map <- left_join(geocorrected, location_counts)
+final_map <-  final_map %>%
+              select(-wikititle, -status) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+final_map
+```
+
+```{r fig.width = 5, warning = FALSE}
+worldmap = map_data('world')
+ggplot() + 
+  geom_polygon(data = worldmap, 
+               aes(x = long, y = lat, group = group), 
+               fill = '#f3f3f3', 
+               color = 'black') + 
+  coord_fixed(ratio = 1.3, xlim = c(-10,3), ylim = c(50, 59)) + 
+  theme(panel.background = element_rect(fill = "grey90")) +
+  geom_point(data = final_map, 
+             aes(x = as.numeric(lng), 
+                 y = as.numeric(lat), size = n, color = log(n)), alpha = 0.6) + 
+  scale_size_area(max_size = 12) + 
+  scale_color_viridis_c() + 
+  theme(legend.position = 'B') + 
+  labs (title = "The Location Distribution of Start-ups in U.K. in the Past 5 Years",
+        subtitle = "Apart from London, which city is heaven for start-ups") +
+  NULL
+```
+
+# method 2: ggplot package source
+
+```{r}
+UK <- map_data("world") %>% filter(region=="UK")
+citydata <- world.cities %>%
+  filter(country.etc=="UK") %>%
+  mutate(location = name)
+```
+
+```{r}
+final_map2 <- left_join(citydata,location_counts)
+final_map2 <- final_map2 %>%
+              select(-name, -country.etc, -pop, -capital) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+final_map2
+```
+
+
+```{r}
+final_map2 %>%
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2, aes(x = long, y = lat), color = "#000080") +
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  labs (title = "The Start-ups map in U.K. for past 5 years") +
+  NULL
+```
+
+```{r}
+final_map2017 <- left_join(citydata,location_counts2017) %>%
+              select(-name, -country.etc, -pop, -capital) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+final_map2018 <- left_join(citydata,location_counts2018) %>%
+              select(-name, -country.etc, -pop, -capital) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+final_map2019 <- left_join(citydata,location_counts2019) %>%
+              select(-name, -country.etc, -pop, -capital) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+final_map2020 <- left_join(citydata,location_counts2020) %>%
+              select(-name, -country.etc, -pop, -capital) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+final_map2021 <- left_join(citydata,location_counts2021) %>%
+              select(-name, -country.etc, -pop, -capital) %>%
+              filter(!is.na(n)) %>%
+              arrange(desc(n))
+```
+
+```{r}
+library(gridExtra)
+map2017 <- final_map2017 %>%
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2017, aes(x = long, y = lat), color = "#000080") +
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  ggtitle("2017")
+
+map2018 <- final_map2018 %>%
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2018, aes(x = long, y = lat), color = "#000080") +
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  ggtitle("2018")
+
+map2019 <- final_map2019 %>%
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2019, aes(x = long, y = lat), color = "#000080") +
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  ggtitle("2019")
+
+map2020 <- final_map2020 %>%
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2020, aes(x = long, y = lat), color = "#000080") +
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  ggtitle("2020")
+
+map2021 <- final_map2021 %>%
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2021, aes(x = long, y = lat), color = "#000080") +
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  ggtitle("2021")
+
+map2017
+map2018
+map2019
+map2020
+map2021
+```
+
+```{r}
+# save each map as png
+ggsave('map2017.jpeg', plot = map2017, device = NULL,width = 6, height = 6, units = 'in')
+ggsave('map2018.jpeg', plot = map2018, device = NULL,width = 6, height = 6, units = 'in')
+ggsave('map2019.jpeg', plot = map2019, device = NULL,width = 6, height = 6, units = 'in')
+ggsave('map2020.jpeg', plot = map2020, device = NULL,width = 6, height = 6, units = 'in')
+ggsave('map2021.jpeg', plot = map2021, device = NULL,width = 6, height = 6, units = 'in')
+```
+
+
+```{r}
+# create gif
+library(magick)
+list.files(pattern = '*.jpeg', full.names = TRUE) %>% 
+        image_read() %>% # reads each path file
+        image_join() %>% # join images
+        image_animate(fps=4) %>% # animates, opt for number of loops
+        image_write("location change.gif") # save to current folder
+```
+
+
+```{r}
+library(ggrepel)
+ggplot() +
+  geom_polygon(data = UK, aes(x = long, y = lat, group = group),
+               fill = "grey", alpha=0.3) +
+  geom_point(data = final_map2, aes(x = long, y = lat, alpha = log(n))) +
+  geom_text_repel(data = final_map2 %>% 
+#                 arrange(desc(n)) %>% 
+                    head(10),
+                    aes(x = long, y = lat, label = location), size = 3) +
+  geom_point(data = final_map2 %>% 
+#             arrange(desc(n)) %>% 
+               head(10),
+             aes(x = long, y = lat), color="#b22222", size=4) + 
+  theme_void() +
+  ylim(50, 59) +
+  coord_map() +
+  theme(legend.position = "none") +
+  labs (title = "Top 10 cities for start-ups in U.K. for past 5 years") +
+  NULL
+```
+
+```{r}
+library(viridis)
+final_map2 %>%
+  arrange(desc(n)) %>%
+  mutate(location=factor(location,unique(location))) %>%
+  ggplot() +
+  geom_polygon(data = UK, aes(x=long, y = lat, group = group), fill="grey", alpha=0.3) +
+  geom_point( aes(x=long, y=lat, size=n, color=n), alpha=0.9) +
+  scale_size_continuous(range=c(1,12)) +
+  scale_color_viridis(trans="log") +
+  theme_void() + 
+  ylim(50,59) + 
+  coord_map() + 
+  theme(legend.position="none") + 
+  labs (title = "The Location Distribution of Start-ups in U.K. ",
+        subtitle = "Apart from London, which city is heaven for start-ups") +
+  NULL
+```
+
+```{r}
+# bubble map for start-ups
+mybreaks <- c(0.02, 0.04, 0.08, 1, 7)
+final_map2 <- final_map2 %>%
+  arrange(desc(n)) %>%
+  mutate(location=factor(location, unique(location))) 
+
+final_map2 %>%
+  ggplot() +
+  geom_polygon(data = UK, aes(x=long, y = lat, group = group), fill="grey", alpha=0.3) +
+  geom_point(aes(x=long, y=lat, size=n, color=n, alpha=n), shape=20, stroke=FALSE) +
+  scale_size_continuous( range=c(1,12), breaks=mybreaks) +
+  scale_alpha_continuous( range=c(0.1, .9), breaks=mybreaks) +
+  scale_color_viridis(option="magma", breaks=mybreaks) +
+  theme_void() + 
+  ylim(50,59) + 
+  coord_map() + 
+  theme(legend.position = "none") +
+  labs (title = "The Location Distribution of Start-ups in U.K. ",
+        subtitle = "Apart from London, which city is heaven for start-ups") +
+  NULL
+```
+
+```{r}
+# interactive map
+# Load the plotly package
+library(plotly)
+
+# Reorder data + Add a new column with tooltip text
+final_map2 <- final_map2 %>%
+  arrange(desc(n)) %>%
+  mutate(location=factor(location, unique(location)))  %>%
+  mutate(mytext = paste(
+    "City:",location,"\n","Number of Start-ups:", n, sep = ""
+  ))
+
+# Make the map (static)
+p <- final_map2 %>%
+  ggplot() + 
+  geom_polygon(data = UK, aes(x=long, y = lat, group = group),fill = "grey", alpha=0.3) +
+  geom_point(aes(x=long, y=lat, size=n, color=n, text=mytext, alpha=n) ) +
+  scale_size_continuous(range=c(1,15)) +
+  scale_color_viridis(option="inferno", trans="log" ) +
+  scale_alpha_continuous(trans="log") +
+  theme_void() +
+  ylim(50,59) +
+  coord_map() +
+  theme(legend.position = "none") +
+  NULL
+
+p <- ggplotly(p, tooltip="text")
+p
+```
+
+# investors
+
+```{r}
+names(investors_data)[names(investors_data) == 'Location'] <- 'location'
+investors_data
+```
+
+```{r warning = FALSE}
+library(countrycode)
+investor_location_counts <- investors_data %>% 
+  separate(location, c('city','state','country'), sep = ",") %>%
+  select(-city,-state)
+  
+investor_location_counts$country_code <- countrycode(sourcevar = investor_location_counts$country,
+                                         origin = "country.name",
+                                         destination = "iso3c")
+investor_location_counts <- investor_location_counts %>% 
+                            group_by(country_code) %>%
+                            tally() %>%
+                            drop_na()
+  
+investor_location_counts
+```
+
+```{r warning=FALSE}
+map_world <- map_data("world")
+
+map_world$country_code <- countrycode(sourcevar = map_world$region,
+                          origin = "country.name",
+                          destination = "iso3c")
+
+final_map_world <- left_join(map_world, investor_location_counts, by = "country_code")
+```
+
+```{r fig.width = 10}
+ggplot(final_map_world, aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = n), color = "white") +
+  labs(title = "start-up investors map in past 5 years ") +
+       xlab ("longitude") +
+       ylab ("latitude") +
+  scale_fill_viridis_c(option = "C", name ="number of investors") +
+  theme_bw() 
+```
+
+```{r}
+library(plotly)
+
+# Reorder data + Add a new column with tooltip text
+final_map_world <- final_map_world %>%
+  arrange(desc(n)) %>%
+  mutate(mytext = paste(
+    "Country:",country_code,"\n","Number of investors:", n, sep = ""
+  ))
+
+# Make the map (static)
+w <- ggplot(final_map_world, aes(x = long, y = lat,text=mytext, group = group)) +
+  geom_polygon(aes(fill = n), color = "white") +
+  labs(title = "start-up investors map in past 5 years ") +
+       xlab ("longitude") +
+       ylab ("latitude") +
+  scale_fill_viridis_c(option = "C", name ="number of investors") +
+  theme_bw() +
+  NULL
+
+w <- ggplotly(w, tooltip="text")
+w
+```
 
 
 
