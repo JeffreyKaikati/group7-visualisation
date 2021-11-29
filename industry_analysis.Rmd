@@ -1,0 +1,139 @@
+---
+title: "Analysis of Industry"
+author: "Jose Laffitte"
+date: "27/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(janitor)
+library(tidyverse)
+library(skimr)
+library(vroom)
+library(stringr)
+library(RTextTools)
+library(SnowballC)
+```
+
+```{r}
+data = read.csv("startups_data.csv")
+
+data = data %>% janitor::clean_names()
+```
+
+```{r}
+skim(data)
+
+data_clean = data %>% 
+  select(-c("transaction_name_url", 
+            "organization_name_url", 
+            "money_raised_currency", 
+            "total_funding_amount_currency", 
+            "pre_money_valuation_currency", 
+            "money_raised", 
+            "total_funding_amount", 
+            "pre_money_valuation"))
+
+data_clean %>% count(organization_industries)
+
+```
+
+```{r}
+data_clean = data_clean %>%
+  mutate(industries = gsub("\\,.*,","", organization_industries))
+
+data_clean = data_clean %>%
+  mutate(industries = word(industries, 1, sep = " "), 
+         industries = gsub(",","", industries), 
+         root = wordStem(industries))
+        
+data_clean %>% 
+  group_by(root) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+
+industry_list = data_clean %>%
+  group_by(root) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  filter(Percent > 1)
+
+industry_list = industry_list$root
+
+data_industry = data_clean %>%
+  filter(root %in% industry_list) %>%
+  drop_na(root)
+
+data_industry = data_industry %>%
+  mutate(three = substr(root, 1, 3))
+
+data_industry %>% 
+  group_by(three) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+data_industry %>% 
+  group_by(industries) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+```
+
+```{r}
+data_industry %>%
+  group_by(three) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  ggplot(aes(x = Percent, y = three, fill = three)) + 
+  geom_col() +
+  theme(legend.position = "none") +
+  labs(title = "Distribution of Funding per Industry") +
+  xlab("Percentage") +
+  ylab("") 
+
+data_industry = data_industry %>%
+  mutate(year = substr(announced_date, 1, 4))
+
+data_industry = data_industry %>%
+  mutate(year_three = paste(year, three))
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = sum, color = three)) +
+  geom_line(aes(x = year, y = sum, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(count = n()) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = count, color = three)) +
+  geom_line(aes(x = year, y = count, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(count = n(), 
+            sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
+            avg_deal = sum/count) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = avg_deal, color = three)) +
+  geom_line(aes(x = year, y = avg_deal, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+```
+

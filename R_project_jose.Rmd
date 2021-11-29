@@ -1,0 +1,61 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(janitor)
+library(tidyverse)
+library(skimr)
+```
+
+
+```{r}
+data = read.csv("file.csv")
+
+data = data %>% janitor::clean_names()
+```
+
+```{r}
+skim(data)
+
+data_clean = data %>% 
+  select(-c("transaction_name_url", 
+            "organization_name_url", 
+            "money_raised_currency", 
+            "total_funding_amount_currency", 
+            "pre_money_valuation_currency", 
+            "money_raised", 
+            "total_funding_amount", 
+            "pre_money_valuation"))
+
+data_clean = data_clean %>%
+  colnames(data_clean$"money_raised_currency_in_usd") <- "money_raised" %>%
+  colnames(data_clean$"total_funding_amount_currency_in_usd") <- "total_funding_amount"
+
+data_clean %>% count(organization_location)
+
+glimpse(data_clean)
+  
+```
+
+```{r}
+industry_list = data_clean$organization_industries
+
+industry_list = gsub("\\,","", industry_list)
+
+(industry_list)
+
+data_clean$industry = unlist(industry_list)
+
+count(data_clean, data_clean$organization_industries)
+
+
+```
+
+
