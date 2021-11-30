@@ -1,0 +1,340 @@
+---
+title: "startups"
+author: "Hanyu Wang"
+date: "26/11/2021"
+output: html_document
+---
+```{r}
+library(dplyr)
+library(janitor)
+library(tidyverse)
+library(skimr)
+library(vroom)
+library(stringr)
+library(SnowballC)
+```
+
+
+```{r}
+data_startups_original <- "STARTUPS"
+files <- fs::dir_ls(path = data_startups_original, regexp = "\\.csv$", recurse = TRUE) 
+startups_data <- vroom(files, id = "source")
+write.csv(x = startups_data,file = "startups_data.csv")
+
+data_investors_original <- "INVESTORS"
+files <- fs::dir_ls(path = data_investors_original, regexp = "\\.csv$", recurse = TRUE) 
+investors_data <- vroom(files, id = "source")
+write.csv(x = investors_data,file = "investors_data.csv")
+
+startups_data <- startups_data %>% 
+  clean_names()
+
+investors_data <- investors_data %>% 
+  clean_names()
+```
+
+```{r}
+skim(startups_data)
+
+glimpse(startups_data)
+```
+
+```{r}
+skim(investors_data)
+
+glimpse(investors_data)
+```
+# Cleaning the data
+```{r Cleaning}
+data_clean <- startups_data %>%
+  mutate(industries = gsub("\\,.*,","", organization_industries)) 
+#  filter(pre_money_valuation_currency_in_usd<=8e+9)%>%
+#  filter(!is.na(organization_revenue_range))
+
+data_clean = data_clean %>%
+  filter(funding_stage %in% c("Seed", "Early Stage Venture"))
+
+data_clean = data_clean %>%
+  mutate(industries = word(industries, 1, sep = " "), 
+         industries = gsub(",","", industries), 
+         root = wordStem(industries))
+
+data_clean %>% 
+  group_by(root) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+industry_list = data_clean %>%
+  group_by(root) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  filter(Percent > 1)
+
+industry_list = industry_list$root
+
+data_industry = data_clean %>%
+  filter(root %in% industry_list) %>%
+  drop_na(root)
+
+data_industry = data_industry %>%
+  mutate(three = substr(root, 1, 3))
+
+data_industry %>% 
+  group_by(three) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+data_industry %>% 
+  group_by(industries) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  arrange(desc(Count))
+
+```
+
+```{r}
+data_industry %>%
+  group_by(three) %>%
+  summarize(Count=n()) %>%
+  mutate(Percent = round((Count/sum(Count)*100))) %>%
+  ggplot(aes(x = Percent, y = three, fill = three)) + 
+  geom_col() +
+  theme(legend.position = "none") +
+  labs(title = "Distribution of Funding per Industry") +
+  xlab("Percentage") +
+  ylab("") 
+
+data_industry = data_industry %>%
+  mutate(year = substr(announced_date, 1, 4))
+
+data_industry = data_industry %>%
+  mutate(year_three = paste(year, three))
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = sum, color = three)) +
+  geom_line(aes(x = year, y = sum, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(count = n()) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = count, color = three)) +
+  geom_line(aes(x = year, y = count, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+data_industry %>%
+  group_by(three, year) %>%
+  summarise(count = n(), 
+            sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
+            avg_deal = sum/count) %>%
+  ggplot() +
+  geom_point(aes(x = year, y = avg_deal, color = three)) +
+  geom_line(aes(x = year, y = avg_deal, color = three, group = 1)) +
+  facet_wrap(~three) +
+  NULL
+
+```
+
+```{r}
+
+```
+
+# Revenue and Valuation Analysis
+## Revenue Analysis
+```{r revenue}
+#histogram with colour for different revenue size and valuation.
+ggplot(data_clean, aes(x=pre_money_valuation_currency_in_usd, fill=organization_revenue_range))+  geom_histogram(binwidth=1000000000)+ labs(x="Pre-Money Valuation Currency (in USD)") + coord_
+```
+
+
+```{r fid.height = 12}
+#density plot with colour for different revenue size.
+data_industry %>%
+filter(!is.na(organization_revenue_range)) %>% 
+filter(pre_money_valuation_currency_in_usd<=5e+7)%>%
+  mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M",
+                                       "$10M to $50M",
+                                       "$50M to $100M"))) %>%
+ggplot(aes(x=pre_money_valuation_currency_in_usd, color=organization_revenue_range))+  
+  geom_density()+
+  facet_grid(rows = vars(organization_revenue_range))+
+  labs(x="Pre-Money Valuation Currency (in USD)")
+```
+
+```{r for all}
+#boxplot with colour for different company size for Financial
+data_industry %>%
+filter(!is.na(organization_revenue_range)) %>% 
+#filter(industries %in% c("Fintech", "Biotechnology", "Artificial", "Blockchain")) %>% 
+mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M",
+                                       "$10M to $50M",
+                                       "$50M to $100M",
+                                       "$100M to $500M",
+                                       "$500M to $1B",
+                                       "$1B to $10B"))) %>%
+ggplot(aes(x=log(pre_money_valuation_currency_in_usd), y=organization_revenue_range, colour=organization_revenue_range))+  
+  geom_boxplot()+
+  theme_bw()+
+  coord_flip()+
+  theme(legend.position = "none")+
+  labs(y="Organization Revenue Range for Fintech Industry", x="Pre-Money Valuation Currency (in USD)")+
+  NULL
+```
+
+
+```{r fintech fid.height = 12}
+#boxplot with colour for different company size for Financial
+data_industry %>%
+filter(pre_money_valuation_currency_in_usd<=8e+9)%>%
+filter(!is.na(organization_revenue_range)) %>% 
+#filter(industries %in% c("Fintech", "Biotechnology", "Artificial", "Blockchain")) %>% 
+group_by(three) %>% 
+mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M",
+                                       "$10M to $50M",
+                                       "$50M to $100M",
+                                       "$100M to $500M",
+                                       "$500M to $1B",
+                                       "$1B to $10B"))) %>%
+ggplot(aes(x=log(pre_money_valuation_currency_in_usd), y=organization_revenue_range, colour=organization_revenue_range))+  
+  geom_boxplot()+
+  theme_bw()+
+  coord_flip()+
+  theme(legend.position = "none")+
+  labs(y="Organization Revenue Range for Fintech Industry", x="Pre-Money Valuation Currency (in USD)")+
+  NULL
+```
+
+```{r Artificial fid.height = 12}
+#boxplot with colour for different company size for Artificial
+data_industry1 <- data_industry %>%
+#filter(pre_money_valuation_currency_in_usd<=8e+9)%>%
+filter(!is.na(organization_revenue_range)) %>% 
+#filter(industries %in% c("Fintech", "Biotechnology", "Artificial", "Blockchain")) %>% 
+filter(industries %in% "Artificial") %>% 
+mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M",
+                                       "$10M to $50M",
+                                       "$50M to $100M")))  %>%
+  select(pre_money_valuation_currency_in_usd, organization_revenue_range) %>%
+  drop_na()
+
+  data_industry1
+  
+ggplot(data =data_industry1, aes(x=organization_revenue_range,
+                                 y=log(pre_money_valuation_currency_in_usd), 
+                                 colour=organization_revenue_range))+  
+  geom_boxplot()+
+  theme_bw()+
+  theme(legend.position = "none")+
+  labs(x="Organization Revenue Range For Artificial Intelligence Industry", y="Pre-Money Valuation Currency (in USD)")+
+  NULL
+```
+
+```{r Biotechnology}
+#boxplot with colour for different company size for Financial
+data_industry %>%
+filter(!is.na(organization_revenue_range)) %>% 
+#filter(industries %in% c("Fintech", "Biotechnology", "Artificial", "Blockchain")) %>% 
+filter(industries %in% "Biotechnology") %>% 
+mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M",
+                                       "$10M to $50M",
+                                       "$50M to $100M",
+                                       "$100M to $500M",
+                                       "$500M to $1B",
+                                       "$1B to $10B"))) %>%
+ggplot(aes(x=log(pre_money_valuation_currency_in_usd), y=organization_revenue_range, colour=organization_revenue_range))+  
+  geom_boxplot()+
+  theme_bw()+
+  coord_flip()+
+  theme(legend.position = "none")+
+  labs(y="Organization Revenue Range for Biotechnology Industry", x="Pre-Money Valuation Currency (in USD)")+
+  NULL
+```
+
+
+```{r Blockchain}
+#boxplot with colour for different company size for Artificial
+data_industry2 <- data_industry %>%
+#filter(pre_money_valuation_currency_in_usd<=8e+9)%>%
+filter(!is.na(organization_revenue_range)) %>% 
+#filter(industries %in% c("Fintech", "Biotechnology", "Artificial", "Blockchain")) %>% 
+filter(industries %in% "Blockchain") %>% 
+mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M")))  %>%
+  select(pre_money_valuation_currency_in_usd, organization_revenue_range) %>%
+  drop_na()
+
+  data_industry2
+  
+ggplot(data =data_industry2, aes(x=organization_revenue_range,
+                                 y=log(pre_money_valuation_currency_in_usd), 
+                                 colour=organization_revenue_range))+  
+  geom_boxplot()+
+  theme_bw()+
+  theme(legend.position = "none")+
+  labs(x="Organization Revenue Range For Blockchain Industry", y="Pre-Money Valuation Currency (in USD)")+
+  NULL
+```
+
+
+
+
+```{r}
+data_industry %>%
+  mutate(organization_revenue_range = factor(organization_revenue_range,
+                            ordered = TRUE,
+                            levels = c("Less than $1M",
+                                       "$1M to $10M",
+                                       "$10M to $50M",
+                                       "$50M to $100M",
+                                       "$100M to $500M",
+                                       "$500M to $1B",
+                                       "$1B to $10B"))) %>%
+ggplot(aes(y=organization_revenue_range, x=pre_money_valuation_currency_in_usd)) + 
+  geom_point(size=0.1, alpha=0.5)+ 
+  geom_smooth(method="lm", se=0) + labs(y="Organization Revenue Range", x="Pre-Money Valuation Currency (in USD)")
+```
+
+```{r}
+data_revenue <- data_industry %>%
+mutate(organization_revenue_range = case_when(organization_revenue_range=="Less than $1M"~ "500000", TRUE~organization_revenue_range)) %>% 
+mutate(organization_revenue_range = case_when(organization_revenue_range=="$1M to $10M"~ "5000000", TRUE~organization_revenue_range)) %>% 
+mutate(organization_revenue_range = case_when(organization_revenue_range=="$10M to $50M"~ "25000000", TRUE~organization_revenue_range)) %>% 
+mutate(organization_revenue_range = case_when(organization_revenue_range=="$50M to $100M"~ "75000000", TRUE~organization_revenue_range)) %>%
+mutate(organization_revenue_range = case_when(organization_revenue_range=="$100M to $500M"~ "300000000", TRUE~organization_revenue_range)) 
+
+data_revenue = data_revenue %>% mutate(organization_revenue_range = as.numeric(organization_revenue_range)) %>% 
+filter(industries %in% "Blockchain") %>% 
+mutate(multiple_comp = pre_money_valuation_currency_in_usd / organization_revenue_range)
+
+skim(data_revenue)
+glimpse(data_revenue)
+```
+
+
+```
+
