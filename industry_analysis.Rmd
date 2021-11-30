@@ -201,7 +201,7 @@ data_industry %>%
 
 data_industry %>%
   filter(three == "Hea") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)/1000000000) %>%
   ggplot() +
   geom_point(aes(x = year, y = sum, color = 055960)) +
@@ -211,12 +211,11 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Hea") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n()) %>%
   ggplot() +
   geom_point(aes(x = year, y = count, color = 055960)) +
@@ -226,12 +225,11 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Hea") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n(), 
             sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
             avg_deal = (sum/count)/1000000) %>%
@@ -243,7 +241,6 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 ```
@@ -254,7 +251,7 @@ data_industry %>%
 
 data_industry %>%
   filter(three == "Bio") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)/1000000000) %>%
   ggplot() +
   geom_point(aes(x = year, y = sum, color = 055960)) +
@@ -264,12 +261,11 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Bio") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n()) %>%
   ggplot() +
   geom_point(aes(x = year, y = count, color = 055960)) +
@@ -279,12 +275,11 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Bio") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n(), 
             sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
             avg_deal = (sum/count)/1000000) %>%
@@ -296,7 +291,6 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 ```
@@ -307,7 +301,7 @@ data_industry %>%
 
 data_industry %>%
   filter(three == "Art") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)/1000000000) %>%
   ggplot() +
   geom_point(aes(x = year, y = sum, color = 055960)) +
@@ -317,12 +311,11 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Art") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n()) %>%
   ggplot() +
   geom_point(aes(x = year, y = count, color = 055960)) +
@@ -332,13 +325,12 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Art", 
          funding_stage != "NA") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n(), 
             sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
             avg_deal = (sum/count)/1000000) %>%
@@ -350,7 +342,6 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 ```
@@ -361,7 +352,7 @@ data_industry %>%
 
 data_industry %>%
   filter(three == "Blo") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(sum = sum(money_raised_currency_in_usd, na.rm = TRUE)/1000000000) %>%
   ggplot() +
   #geom_point(aes(x = year, y = sum, color = 055960)) +
@@ -371,39 +362,36 @@ data_industry %>%
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Blo") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n()) %>%
   ggplot() +
-  #geom_point(aes(x = year, y = count, color = 055960)) +
+  geom_point(aes(x = year, y = count, color = 055960)) +
   geom_line(aes(x = year, y = count, color = 055960, group = 1)) +
   labs(title = "Number of Investments into Blockchain Companies per Year") +
   xlab("") +
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 data_industry %>%
   filter(three == "Blo") %>%
-  group_by(three, year, funding_stage) %>%
+  group_by(three, year) %>%
   summarise(count = n(), 
             sum = sum(money_raised_currency_in_usd, na.rm = TRUE), 
             avg_deal = (sum/count)/1000000) %>%
   ggplot() +
-  #geom_point(aes(x = year, y = avg_deal, color = 055960)) +
+  geom_point(aes(x = year, y = avg_deal, color = 055960)) +
   geom_line(aes(x = year, y = avg_deal, color = 055960, group = 1)) +
   labs(title = "Average Investment Size into Blockchain Companies per Year (Millions USD)") +
   xlab("") +
   ylab("") +
   theme_bw() +
   theme(legend.position = "None") + 
-  facet_wrap(~funding_stage) +
   NULL
 
 ```
